@@ -1,5 +1,5 @@
 # triplet_loss_keras
-Train minist data with triplet loss
+### Train minist data with triplet loss
 
 Author: Tuan Anh Nguyen
 
