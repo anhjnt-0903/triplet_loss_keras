@@ -14,7 +14,7 @@ from keras.callbacks import ModelCheckpoint, LearningRateScheduler, TensorBoard
 import matplotlib.pyplot as plt, numpy as np
 
 
-from triplet_loss import batch_all_triplet_loss
+from triplet_loss import batch_all_triplet_loss_keras
 
 
 def create_base_network(image_input_shape, embedding_size):
@@ -68,7 +68,7 @@ if __name__ == "__main__":
 
     opt = Adam(lr=0.0001)  # choose optimiser. RMS is good too!
 
-    model.compile(loss=batch_all_triplet_loss, optimizer=opt)
+    model.compile(loss=batch_all_triplet_loss_keras, optimizer=opt)
 
     filepath = '/content/gdrive/My Drive/Colab Notebooks/Triplet_loss/weights' + "/triplet_loss_" + '.{epoch:02d}-{loss:.2f}.hdf5'
 
@@ -87,4 +87,5 @@ if __name__ == "__main__":
                     batch_size=5,
                     epochs=100,
                     validation_data=(x_val, y_val),
+                    initial_epoch=0,
                     callbacks=[checkpoint, tensor_board])

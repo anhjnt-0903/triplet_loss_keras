@@ -77,11 +77,8 @@ def _get_triplet_mask(labels, batch_size=256):
 
     return mask
 
-def batch_all_triplet_loss(labels, y_pred):
-    # del labels
-    margin = 1.
+def batch_all_triplet_loss(labels, y_pred, margin=0.5, squared=False):
     labels = labels
-    squared = False
     batch_size = 5
 
     labels = tf.cast(labels, dtype='int32')
@@ -120,3 +117,10 @@ def batch_all_triplet_loss(labels, y_pred):
     triplet_loss = math_ops.reduce_sum(triplet_loss) / (num_positive_triplets + 1e-16)
     
     return triplet_loss
+
+
+def batch_all_triplet_loss_keras(labels, y_pred):
+
+    labels = K.flatten(labels)
+
+    return batch_all_triplet_loss(labels, y_pred, margin=0.5, squared=False)
