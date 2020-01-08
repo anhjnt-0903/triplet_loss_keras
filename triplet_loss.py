@@ -77,7 +77,7 @@ def _get_triplet_mask(labels, batch_size=256):
 
     return mask
 
-def batch_all_triplet_loss(labels, y_pred, margin=0.5, squared=False, batch_size = 5):
+def batch_all_triplet_loss(labels, y_pred, margin=0.5, squared = False, batch_size = 10):
     labels = tf.cast(labels, dtype='int32')
     embeddings = y_pred
 
@@ -116,8 +116,8 @@ def batch_all_triplet_loss(labels, y_pred, margin=0.5, squared=False, batch_size
     return triplet_loss
 
 
-def batch_all_triplet_loss_keras(labels, y_pred):
+def keras_batch_all_triplet_loss(labels, y_pred):
 
     labels = K.flatten(labels)
 
-    return batch_all_triplet_loss(labels, y_pred, margin=0.5, squared=False)
+    return batch_all_triplet_loss(labels, y_pred, margin = 0.5, squared=True, batch_size=10)

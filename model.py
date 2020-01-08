@@ -37,8 +37,8 @@ def create_base_network(image_input_shape, embedding_size):
 
 if __name__ == "__main__":
 
-    batch_size = 32
-    epochs = 25
+    batch_size = 10
+    epochs = 100
     train_flag = True  # either     True or False
 
     embedding_size = 64
@@ -84,7 +84,7 @@ if __name__ == "__main__":
         H = model.fit(
                     x=x_train,
                     y=y_train,
-                    batch_size=5,
+                    batch_size=10,
                     epochs=100,
                     validation_data=(x_val, y_val),
                     initial_epoch=0,
