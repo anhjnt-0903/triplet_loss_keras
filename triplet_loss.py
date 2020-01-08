@@ -77,10 +77,7 @@ def _get_triplet_mask(labels, batch_size=256):
 
     return mask
 
-def batch_all_triplet_loss(labels, y_pred, margin=0.5, squared=False):
-    labels = labels
-    batch_size = 5
-
+def batch_all_triplet_loss(labels, y_pred, margin=0.5, squared=False, batch_size = 5):
     labels = tf.cast(labels, dtype='int32')
     embeddings = y_pred
 
