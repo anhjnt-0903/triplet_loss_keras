@@ -120,13 +120,16 @@ def ResNet50(img_input=None, weight_path=None):
     return model
 
 
-def CustomModel(weight_path):
+def CustomModel(weight_path=None, n_cluster=8):
     img_input = Input(shape=(512, 512, 3))
     backbone_model = ResNet50(img_input, weight_path)
     
-    output = Dense(128, 
-              input_shape = (2048,),
-              activation='softmax')(backbone_model.output)
+    output = []
+
+    for i in range(n_cluster):
+        output.append(
+            Dense(128//n_cluster, input_shape = (2048,), activation='softmax', name="output_" + str(i))(backbone_model.output)
+        )
 
     model = Model(img_input, output)
 
