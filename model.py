@@ -121,7 +121,7 @@ def ResNet50(img_input=None, weight_path=None):
 
 
 def CustomModel(weight_path=None, n_cluster=8):
-    img_input = Input(shape=(512, 512, 3))
+    img_input = Input(shape=(256, 256, 3))
     backbone_model = ResNet50(img_input, weight_path)
     
     output = []
