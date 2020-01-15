@@ -1,91 +1,133 @@
-from keras.datasets import mnist
-from keras.models import Model, load_model
-from keras.layers import Input, Flatten, Dense, concatenate,  Dropout, \
-                        Conv2D, Activation, BatchNormalization, Dense, MaxPooling2D, \
-                        Reshape
-from keras.optimizers import Adam
-from keras.utils import plot_model
-from keras.callbacks import ModelCheckpoint
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import math_ops
-from tensorflow.python.framework import dtypes
-import tensorflow as tf
-from keras.callbacks import ModelCheckpoint, LearningRateScheduler, TensorBoard
-import matplotlib.pyplot as plt, numpy as np
+import keras
+from keras.models import Model
+from keras.layers import Layer
+from keras.layers import Conv2D, RepeatVector, Lambda, Add, \
+                            Flatten, UpSampling2D, MaxPooling2D, \
+                            Dropout, Cropping2D, Input, concatenate, \
+                            BatchNormalization, Activation, \
+                            AveragePooling2D, GlobalAveragePooling2D, \
+                            GlobalAveragePooling1D, ZeroPadding2D, Dense, Reshape
+
+def conv_block(input_tensor, kernel_size, filters, stage, block, strides=(2, 2)):
+    filters1, filters2, filters3 = filters
+    bn_axis = 3
+    conv_name_base = 'res' + str(stage) + block + '_branch'
+    bn_name_base = 'bn' + str(stage) + block + '_branch'
+
+    x = Conv2D(filters1, (1, 1), strides=strides,
+                      kernel_initializer='he_normal',
+                      name=conv_name_base + '2a')(input_tensor)
+    x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2a')(x)
+    x = Activation('relu')(x)
+
+    x = Conv2D(filters2, kernel_size, padding='same',
+                      kernel_initializer='he_normal',
+                      name=conv_name_base + '2b')(x)
+    x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2b')(x)
+    x = Activation('relu')(x)
+
+    x = Conv2D(filters3, (1, 1),
+                      kernel_initializer='he_normal',
+                      name=conv_name_base + '2c')(x)
+    x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2c')(x)
+
+    shortcut = Conv2D(filters3, (1, 1), strides=strides,
+                             kernel_initializer='he_normal',
+                             name=conv_name_base + '1')(input_tensor)
+    shortcut = BatchNormalization(
+        axis=bn_axis, name=bn_name_base + '1')(shortcut)
+
+    x = Add()([x, shortcut])
+    x = Activation('relu')(x)
+    
+    return x
 
 
-from triplet_loss import batch_all_triplet_loss_keras
+def identity_block(input_tensor, kernel_size, filters, stage, block):
+    filters1, filters2, filters3 = filters
+    bn_axis = 3
+    conv_name_base = 'res' + str(stage) + block + '_branch'
+    bn_name_base = 'bn' + str(stage) + block + '_branch'
+
+    x = Conv2D(filters1, (1, 1),
+                      kernel_initializer='he_normal',
+                      name=conv_name_base + '2a')(input_tensor)
+    x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2a')(x)
+    x = Activation('relu')(x)
+
+    x = Conv2D(filters2, kernel_size,
+                      padding='same',
+                      kernel_initializer='he_normal',
+                      name=conv_name_base + '2b')(x)
+    x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2b')(x)
+    x = Activation('relu')(x)
+
+    x = Conv2D(filters3, (1, 1),
+                      kernel_initializer='he_normal',
+                      name=conv_name_base + '2c')(x)
+    x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2c')(x)
+
+    x = Add()([x, input_tensor])
+    x = Activation('relu')(x)
+
+    return x
 
 
-def create_base_network(image_input_shape, embedding_size):
-    """
-    Base network to be shared (eq. to feature extraction).
-    """
-    input_image = Input(shape=image_input_shape)
+def ResNet50(img_input=None, weight_path=None):
+    bn_axis=3
+    x = ZeroPadding2D(padding=(3, 3), name='conv1_pad')(img_input)
+    x = Conv2D(64, (7, 7), strides=(2, 2), padding='valid',
+                kernel_initializer='he_normal', name='conv1')(x)
+    x = BatchNormalization(axis=bn_axis, name='bn_conv1')(x)
+    x = Activation('relu')(x)
+    x = ZeroPadding2D(padding=(1, 1), name='pool1_pad')(x)
+    x = MaxPooling2D((3, 3), strides=(2, 2))(x)
 
-    x = Flatten()(input_image)
-    x = Dense(128, activation='relu')(x)
-    x = Dropout(0.1)(x)
-    x = Dense(128, activation='relu')(x)
-    x = Dropout(0.1)(x)
-    x = Dense(embedding_size)(x)
+    # layer1
+    x = conv_block(x, 3, [64, 64, 256], stage=2, block='a', strides=(1, 1))
+    x = identity_block(x, 3, [64, 64, 256], stage=2, block='b')
+    x = identity_block(x, 3, [64, 64, 256], stage=2, block='c')
 
-    base_network = Model(inputs=input_image, outputs=x)
-    plot_model(base_network, to_file='base_network.png', show_shapes=True, show_layer_names=True)
-    return base_network
+    # layer2
+    x = conv_block(x, 3, [128, 128, 512], stage=3, block='a')
+    x = identity_block(x, 3, [128, 128, 512], stage=3, block='b')
+    x = identity_block(x, 3, [128, 128, 512], stage=3, block='c')
+    x = identity_block(x, 3, [128, 128, 512], stage=3, block='d')
+
+    # layer3
+    x = conv_block(x, 3, [256, 256, 1024], stage=4, block='a')
+    x = identity_block(x, 3, [256, 256, 1024], stage=4, block='b')
+    x = identity_block(x, 3, [256, 256, 1024], stage=4, block='c')
+    x = identity_block(x, 3, [256, 256, 1024], stage=4, block='d')
+    x = identity_block(x, 3, [256, 256, 1024], stage=4, block='e')
+    x = identity_block(x, 3, [256, 256, 1024], stage=4, block='f')
+    
+    # layer4
+    x = conv_block(x, 3, [512, 512, 2048], stage=5, block='a')
+    x = identity_block(x, 3, [512, 512, 2048], stage=5, block='b')
+    x = identity_block(x, 3, [512, 512, 2048], stage=5, block='c')
+
+    x = GlobalAveragePooling2D()(x)
+
+    inputs = img_input
+    # create backbone model ResNet50 with include top = Flase
+    model = Model(inputs, x, name='resnet50')
+
+    model.load_weights(weight_path)
+    for layer in model.layers:
+        layer.trainable = False
+
+    return model
 
 
-if __name__ == "__main__":
+def CustomModel(weight_path):
+    img_input = Input(shape=(512, 512, 3))
+    backbone_model = ResNet50(img_input, weight_path)
+    
+    output = Dense(128, 
+              input_shape = (2048,),
+              activation='softmax')(backbone_model.output)
 
-    batch_size = 10
-    epochs = 100
-    train_flag = True  # either     True or False
+    model = Model(img_input, output)
 
-    embedding_size = 64
-
-    no_of_components = 2  # for visualization -> PCA.fit_transform()
-
-    step = 10
-
-    # The data, split between train and test sets
-    (x_train, y_train), (x_test, y_test) = mnist.load_data()
-    x_train = x_train.astype('float32')
-    x_test = x_test.astype('float32')
-    x_train /= 255.
-    x_test /= 255.
-    input_image_shape = (28, 28, 1)
-    x_val = x_test[:2000, :, :]
-    y_val = y_test[:2000]
-
-    base_network = create_base_network(input_image_shape, embedding_size)
-    input_images = Input(shape=input_image_shape, name='input_image')
-    embeddings = base_network(input_images)
-    model = Model(inputs=input_images,
-                        outputs=embeddings)
-
-    model.summary()
-    plot_model(model, to_file='model.png', show_shapes=True, show_layer_names=True)
-
-    opt = Adam(lr=0.0001)  # choose optimiser. RMS is good too!
-
-    model.compile(loss=batch_all_triplet_loss_keras, optimizer=opt)
-
-    filepath = '/content/gdrive/My Drive/Colab Notebooks/Triplet_loss/weights' + "/triplet_loss_" + '.{epoch:02d}-{loss:.2f}.hdf5'
-
-    checkpoint = ModelCheckpoint(filepath, monitor='loss', verbose=1,
-                                save_weights_only=True, save_best_only=True, mode='auto', period=1)
-
-    tensor_board = TensorBoard(log_dir='/content/gdrive/My Drive/Colab Notebooks/Triplet_loss/logs')
-
-    x_train = x_train.reshape((60000, 28, 28, 1))
-    x_val = x_val.reshape((2000, 28, 28, 1))
-
-    with tf.device('/device:GPU:0'):
-        H = model.fit(
-                    x=x_train,
-                    y=y_train,
-                    batch_size=10,
-                    epochs=100,
-                    validation_data=(x_val, y_val),
-                    initial_epoch=0,
-                    callbacks=[checkpoint, tensor_board])
+    return model
